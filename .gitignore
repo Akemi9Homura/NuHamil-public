@@ -1,0 +1,30 @@
+# Build products
+/exe/NuHamil.exe
+/obj/
+/mod/
+*.o
+*.mod
+
+# Generated run scripts and logs
+Input_*.dat
+run_*.sh
+log_*.dat
+*.log
+
+# NuHamil generated interaction/operator files
+*.me2j
+*.me2j.gz
+*.me2j.bin
+*.op.me2j
+*.op.me2j.gz
+*.me3j.gz
+*.stream.bin
+*.MFDn
+*.snt
+NNint_A*_rel_*.gz
+
+# Local editor and OS files
+*.swp
+*~
+.DS_Store
+
