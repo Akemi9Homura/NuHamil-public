@@ -1,11 +1,14 @@
 # Build products
 /exe/NuHamil.exe
+/exe/NuHamil_*.exe
+/bin/
 /obj/
 /mod/
 *.o
 *.mod
 
 # Generated run scripts and logs
+/result/
 Input_*.dat
 run_*.sh
 log_*.dat
@@ -27,4 +30,3 @@ NNint_A*_rel_*.gz
 *.swp
 *~
 .DS_Store
-

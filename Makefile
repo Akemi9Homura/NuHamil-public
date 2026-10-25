@@ -56,7 +56,7 @@ ifeq ($(strip $(HOST)),other)
   ifeq ($(arch), arm)
     LFLAGS+= -I/opt/homebrew/include -L/opt/homebrew/lib
   endif
-  LFLAGS+= -lgsl -lz -lhdf5_fortran -lm -ldl
+  LFLAGS+= -lgsl -lgslcblas -lz -lhdf5_fortran -lm -ldl
   ifeq ($(use_mkl), on)
     LFLAGS+= -lmkl_intel_lp64 -lmkl_gnu_thread -lmkl_core -lpthread
   else
@@ -65,6 +65,8 @@ ifeq ($(strip $(HOST)),other)
   FFLAGS= -O3
   CFLAGS= -O3
   FFLAGS+= -fopenmp #-fdec-math
+  FFLAGS+= -ffree-line-length-0
+  FFLAGS+= -I/opt/library/hdf5-1.14.1/include
   FFLAGS+= -DVERSION=\"$(VERSION)\"
   FLINES = -ffree-line-length-0
   FCHIRAL = $(FFLAGS)

@@ -30,6 +30,8 @@ make install
 
 This creates `/home/mengziyan/bin/NuHamil.exe`, pointing to `exe/NuHamil.exe`.
 
+On this machine `-lblas -llapack` resolve, through the Debian alternatives, to OpenBLAS (`/usr/lib/x86_64-linux-gnu/openblas-pthread/`). On point7 the same flags end up with Netlib reference BLAS, which makes the lab-frame transformation run on one core: build and run there as described in `jobs/README.md` (`jobs/build_point7.sh`).
+
 ## What NuHamil Does
 
 NuHamil is mainly an interaction/matrix-element generator and converter. It takes nuclear interaction inputs, such as the bundled NN files under `input_nn_files/`, transforms them to harmonic-oscillator basis matrix elements, optionally applies SRG/other processing, and writes matrix-element formats for many-body solvers.
@@ -152,3 +154,133 @@ Important details:
 
 The bundled `exe/file_converter.py` documents the mode, but currently has a syntax issue (`def main()` lacks a colon) and empty default filenames, so writing a namelist by hand is more reliable.
 
+## Output Location on point7
+
+On point7, `/tns/public/Forces/` should be treated as a shared/read-only input area. Do not write converted/generated files back there unless the user explicitly asks and permissions allow it.
+
+Since 2026-10-25 NuHamil calculations on point7 run in the calculation directory `/tns/mengziyan/job-nuhamil` (not a git repository; layout, binary and environment in `jobs/README.md`): generated inputs, Slurm scripts, logs and operator/interaction files go under its `result/`, one subdirectory per task. This checkout holds source, build scripts and job templates only.
+
+The conversions done before that date stay where they are, under this checkout's `result/` (ignored by git), with the convention below:
+
+```text
+/tns/mengziyan/NuHamil-public/result/<force>_<renorm>_hw<hw>_src-emax<emax>-e2max<e2max>/
+```
+
+Inside each task directory:
+
+```text
+inputs/   NuHamil namelist files
+scripts/  Slurm submission scripts
+logs/     Slurm stdout/stderr
+outputs/  converted/generated interaction files
+```
+
+`result/` is a local working/output area and should not be committed.
+
+For Slurm runs, use OpenMP jobs by default with one task and 32 CPUs:
+
+```bash
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-32}"
+```
+
+Example completed conversion:
+
+```text
+source:
+/tns/public/Forces/N2LO_opt/2BME/TwBME_N2LO_opt_bare_hw20_emax12_e2max24.me2j.gz
+
+output:
+/tns/mengziyan/NuHamil-public/result/N2LO_opt_bare_hw20_src-emax12-e2max24/outputs/TwBME_N2LO_opt_bare_hw20_emax2_e2max4.MFDn
+```
+
+The source-space parameters for that conversion were `hw=20`, `emax=12`, `e2max=24`, `lmax=12`; the converted target space was `emax_convert=2`, `e2max_convert=4`, `lmax_convert=2`.
+
+## NO2B Normal Ordering Tool
+
+The local NO2B normal-ordering tool is outside this repository:
+
+```text
+/tns/mengziyan/tools/no2b/normal-order/
+```
+
+The executable is:
+
+```text
+/tns/mengziyan/tools/no2b/normal-order/src/no2b
+```
+
+Before running it, use the tool environment:
+
+```bash
+cd /tns/mengziyan/tools/no2b/normal-order
+source /tns/mengziyan/tools/no2b/normal-order/sourceme.sh
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/tns/mengziyan/tools/no2b/normal-order/src/"
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-32}"
+```
+
+`sourceme.sh` currently does:
+
+```bash
+module purge
+module load openblas/0.3.10 boost/1.81.0 gsl/2.7.1
+```
+
+The existing run scripts live in:
+
+```text
+/tns/mengziyan/tools/no2b/normal-order/script/run_imsrg_no2b_*.sh
+```
+
+They call `src/no2b` with `key=value` arguments. A typical EM1.8/2.0 run is:
+
+```bash
+/tns/mengziyan/tools/no2b/normal-order/src/no2b \
+  method=HF reference=He4 A=4 hw=16 emax=12 e3max=18 \
+  goose_tank=false nucleon_mass_correction=true valence_space=He4 \
+  LECs=EM1.8_2.0 \
+  file2e1max=14 file2e2max=28 file2lmax=14 \
+  2bme=/tns/public/Forces/EM1.8_2.0/2BME/TwBME_N3LO_EM500_srg1.8_hw16_emax14_e2max28.me2j.gz \
+  file3e1max=14 file3e2max=28 file3e3max=18 \
+  3bme=/tns/public/Forces/EM1.8_2.0/3BME/ThBME_NO2B_EM1.8_2.0_hw16_emax14_e2max28_e3max18.me3j.gz \
+  3bme_type=no2b \
+  intfile=/tns/mengziyan/tools/no2b/normal-order/data/EM1.8_2.0/He4/He4_EM1.8_2.0_hw16_emax12_e3max18 \
+  flowfile=/tns/mengziyan/tools/no2b/normal-order/data/EM1.8_2.0/He4/He4_EM1.8_2.0_hw16_emax12_e3max18
+```
+
+Important details:
+
+- Use `method=HF` for the normal-ordering runs used so far.
+- `reference`, `valence_space`, and the output basename are usually the same nucleus label, such as `He4`, `O24`, or `Li8`.
+- For EM1.8/2.0, the source files are under `/tns/public/Forces/EM1.8_2.0/`.
+- Existing EM1.8/2.0 source files use source truncations `file2e1max=14 file2e2max=28 file2lmax=14` and `file3e1max=14 file3e2max=28 file3e3max=18`, even if the target run uses smaller `emax/e3max`.
+- `3bme_type=no2b` is used with NuHamil-generated `ThBME_NO2B_*.me3j.gz` inputs.
+- `intfile` and `flowfile` are basenames without suffix. The program writes the actual binary output as `no2b_<basename(intfile)>.bin` in the same directory.
+- Put NO2B binary outputs under clear subdirectories of the tool data tree, e.g. `/tns/mengziyan/tools/no2b/normal-order/data/EM1.8_2.0/Li8/`.
+- Keep Slurm logs and scripts in the NO2B tool tree unless the user asks for a different location.
+
+Use Slurm OpenMP jobs by default:
+
+```bash
+#SBATCH --partition c128m512
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=32
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-32}"
+```
+
+Before submitting a batch of NO2B jobs, check resources and the user's queue:
+
+```bash
+sinfo
+squeue -u "$USER"
+```
+
+On `c128m512`, a 32-thread NO2B job uses one quarter of a 128-core node. For a full EM1.8/2.0 `hw=6,8,...,28` sweep, a clean packing is four jobs per idle node, for example `node2` gets four `hw` values, `node3` gets the next four, and `node4` gets the last four via `#SBATCH --nodelist=<node>`.
+
+Example completed NO2B output:
+
+```text
+/tns/mengziyan/tools/no2b/normal-order/data/EM1.8_2.0/O24/no2b_O24_EM1.8_2.0_hw16_emax14_e3max18.bin
+```
