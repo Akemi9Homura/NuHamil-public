@@ -12,6 +12,7 @@
 
 - 计算目录原来是一个 git 仓库（`Akemi9Homura/job-nuhamil`，私有，由 `hhurongzhe/job-nuhamil` 的 ef63f4b 复制而来），2026-10-25 起不再往里提交。
 - 它里面的 `job-nbme/`、`job-phase/` 脚本还在原处，可以照常运行；作业模板以本仓库 `jobs/` 下的为准。
+- 它在本仓库没有对应的部分（三体力笔记、相移脚本、`clean.py`）已原样留档在 `jobs/archive-job-nuhamil/`，说明见其中的 `README.md`。
 - `hhurongzhe/job-nuhamil` 之后的更新依赖他自己的 NuHamil 版本（如 `cached_lambdas` 参数），不合并。
 
 ## 编译
